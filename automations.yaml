@@ -1,0 +1,125 @@
+- alias: Rowing Club Initialise
+  description: Get data from APIs on restart or API change
+  trigger:
+    - platform: homeassistant
+      event: start
+    - platform: state
+      entity_id:
+        - sensor.met_datapoint_api_key
+    - platform: state
+      entity_id:
+        - sensor.met_datapoint_location
+    - platform: state
+      entity_id:
+        - sensor.env_station
+  action:
+    - service: script.rowing_club_update_api_data
+
+- alias: Rowing Club Board Change
+  #id: rowing_club_board_change
+  description: Calculate the board colour / rowing status
+  trigger:
+    - platform: state
+      entity_id:
+        - sensor.rowing_club_air_temperature
+    - platform: state
+      entity_id:
+        - sensor.rowing_club_met_forcast
+    - platform: state
+      entity_id:
+        - sensor.rowing_club_river_flow
+    - platform: state
+      entity_id:
+        - sensor.rowing_club_river_level
+    - platform: state
+      entity_id:
+        - input_select.rowing_club_override_board_colour
+  condition: []
+  action:
+    - choose:
+        - conditions:
+            - condition: or
+              conditions:
+                - condition: numeric_state
+                  entity_id: sensor.rowing_club_river_flow
+                  above: 119.9999
+          sequence:
+            - service: input_select.select_option
+              data:
+                option: Red
+              target:
+                entity_id: input_select.rowing_club_board_colour_calculated
+            - service: input_text.set_value
+              data:
+                value: Stream is greaater than 120 m3/sec
+              target:
+                entity_id: input_text.rowing_club_board_colour_reason_calculated
+        - conditions:
+            - condition: or
+              conditions:
+                - condition: numeric_state
+                  entity_id: sensor.rowing_club_river_flow
+                  above: 99.9999
+                - condition: numeric_state
+                  entity_id: sensor.rowing_club_air_temperature
+                  below: 3.00001
+          sequence:
+            - service: input_select.select_option
+              data:
+                option: Red/Amber
+              target:
+                entity_id: input_select.rowing_club_board_colour_calculated
+            - service: input_text.set_value
+              data:
+                value: Stream is 100 to 120 m3/sec, or water temperature <= 3°C
+              target:
+                entity_id: input_text.rowing_club_board_colour_reason_calculated
+        - conditions:
+            - condition: or
+              conditions:
+                - condition: numeric_state
+                  entity_id: sensor.rowing_club_river_flow
+                  above: 64.9999
+                - condition: numeric_state
+                  entity_id: sensor.rowing_club_air_temperature
+                  below: 8.00001
+          sequence:
+            - service: input_select.select_option
+              data:
+                option: Amber
+              target:
+                entity_id: input_select.rowing_club_board_colour_calculated
+            - service: input_text.set_value
+              data:
+                value: Stream is 65 to 99 m3/sec, or water temperature <= 8°C
+              target:
+                entity_id: input_text.rowing_club_board_colour_reason_calculated
+      default:
+        - service: input_select.select_option
+          data:
+            option: None
+          target:
+            entity_id: input_select.rowing_club_board_colour_calculated
+        - service: input_text.set_value
+          data:
+            value: Rowing is permitted
+          target:
+            entity_id: input_text.rowing_club_board_colour_reason_calculated
+    - if:
+        - condition: state
+          entity_id: input_select.rowing_club_override_board_colour
+          state: "off"
+      then:
+        - service: input_select.select_option
+          data:
+            option: "{{ states('input_select.rowing_club_board_colour_calculated') }}"
+          target:
+            entity_id: input_select.rowing_club_board_colour
+        - service: input_text.set_value
+          data:
+            value: >-
+              {{ states('input_text.rowing_club_board_colour_reason_calculated')
+              }}
+          target:
+            entity_id: input_text.rowing_club_board_colour_reason
+  mode: single

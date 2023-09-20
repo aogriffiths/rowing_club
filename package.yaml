@@ -1,0 +1,186 @@
+automation: !include automations.yaml
+
+input_select:
+  # Board Colour
+  rowing_club_override_board_colour:
+    name: rowing_club_override_board_colour
+    options:
+       - "off"
+       - "on"
+    initial: "off"
+  rowing_club_board_colour:
+    name: rowing_club_board_colour
+    options:
+       - "Amber"
+       - "Red/Amber"
+       - "Red"
+       - "None"
+    initial: "None"
+  rowing_club_board_colour_calculated:
+    name: rowing_club_board_colour_calculated
+    options:
+       - "Amber"
+       - "Red/Amber"
+       - "Red"
+       - "None"
+    initial: "None"
+
+input_text:
+  # Config Inputs
+  met_datapoint_api_key:
+    # Met Office Data Point API Key
+    name: met_datapoint_api_key
+    mode: password
+  met_datapoint_location:
+    # Met Office Data Point location code
+    name: met_datapoint_location
+    initial: 324154
+  env_station:
+    # Environment Agency Station ID
+    name: env_station
+    initial: 2604TH
+
+  # Board Colour
+  rowing_club_board_colour_reason_calculated:
+    # Met Office Data Point API Key
+    name: rowing_club_board_colour_reason
+    initial: Not calculated yet
+  rowing_club_board_colour_reason:
+    # Met Office Data Point API Key
+    name: rowing_club_board_colour_reason
+    initial: Not set the colour yet
+
+
+# REST sensors get the data from public APIs
+rest:
+  # From the Met Office
+  - resource_template: "http://datapoint.metoffice.gov.uk/public/data/val/wxfcs/all/json/{{ states('input_text.met_datapoint_location') }}?res=3hourly&key={{ states('input_text.met_datapoint_api_key') }}"
+    scan_interval: 3600 #1h recomened refresh interval
+    sensor:
+      - name: rowing_club_met_forcast
+        value_template: "OK"
+        json_attributes_path: "$.SiteRep.DV.Location.Period[0].Rep[0]"
+        json_attributes:
+           - "D"  # Wind Direction "compass"
+           - "F"  # Feels Like Temperature "C"
+           - "G"  # Wind Gust "mph"
+           - "H"  # Screen Relative Humidity "%"
+           - "Pp" # Precipitation Probabilit "%"
+           - "S"  # Wind Speed "mph"
+           - "T"  # Temperature "C"
+           - "V"  # Visibility ""
+           - "W"  # Weather Type ""
+           - "U"  # Max UV Index ""
+           - "$"  # key "mins since midnight"
+
+  # From the Environment Agency
+  - resource_template: "https://environment.data.gov.uk/flood-monitoring/id/stations/{{ states('input_text.env_station') }}.json"
+    scan_interval: 900 #15m recomened refresh interval
+    sensor:
+      - name: rowing_club_flood_monitor_flow
+        json_attributes_path: '$.items.measures[[?(@.parameter == "flow")]].latestReading'
+        value_template: "OK"
+        json_attributes:
+          - "value"
+          - "dateTime"
+      - name: rowing_club_flood_monitor_level
+        json_attributes_path: '$.items.measures[[?(@.parameter == "level")]].latestReading'
+        value_template: "OK"
+        json_attributes:
+          - "value"
+          - "dateTime"
+
+  - resource_template: "https://environment.data.gov.uk/flood-monitoring/id/stations/{{ states('input_text.env_station') }}.json"
+    scan_interval: 86400 #24hr - could use this once a day to check the refrecence data dosn't change...
+    sensor:
+      - name: rowing_club_flood_monitor_flow_measures
+        json_attributes_path: '$.items.measures[[?(@.parameter == "flow")]]'
+        value_template: "OK"
+        json_attributes:
+          - "@id"
+          - "label"
+          - "notation"
+          - "parameter"
+          - "parameterName"
+          - "period"
+          - "qualifier"
+          - "station"
+          - "stationReference"
+          - "unit"
+          - "unitName"
+          - "valueType"
+      - name: rowing_club_flood_monitor_level_measures
+        json_attributes_path: '$.items.measures[[?(@.parameter == "level")]]'
+        value_template: "OK"
+        json_attributes:
+          - "@id"
+          - "label"
+          - "notation"
+          - "parameter"
+          - "parameterName"
+          - "period"
+          - "qualifier"
+          - "station"
+          - "stationReference"
+          - "unit"
+          - "unitName"
+          - "valueType"
+
+# Useful script to force REST API updates
+script:
+  rowing_club_update_api_data:
+    sequence:
+      # This is Home Assistant Script Syntax
+      - service: homeassistant.update_entity
+        data: {}
+        target:
+          entity_id:
+            - sensor.rowing_club_met_forcast
+            - sensor.rowing_club_flood_monitor_flow
+            - sensor.rowing_club_flood_monitor_level
+            - sensor.rowing_club_flood_monitor_flow_measures
+            - sensor.rowing_club_flood_monitor_level_measures
+
+# Template sensors take the raw data and format it for easier use
+template:
+    - unique_id: rowing_club_template_sensors
+      sensor:
+        - name: "Rowing Club River Flow"
+          #id: rowing_club_river_flow
+          unit_of_measurement: "m3/s"
+          state: "{{ state_attr('sensor.rowing_club_flood_monitor_flow', 'value') | round(0) }}"
+
+        - name: "Rowing Club River Level"
+          #id: rowing_club_river_level
+          unit_of_measurement: "mASD"
+          state: "{{ state_attr('sensor.rowing_club_flood_monitor_level', 'value') | round(2) }}"
+
+        - name: "Rowing Club Air Temperature"
+          #id: rowing_club_air_temperature
+          unit_of_measurement: "ºC"
+          state: "{{ state_attr('sensor.rowing_club_met_forcast', 'T') | round(1) }}"
+
+        - name: "Rowing Club Feels Like"
+          #id: rowing_club_feels_like
+          unit_of_measurement: "ºC"
+          state: "{{ state_attr('sensor.rowing_club_met_forcast', 'F') | round(1) }}"
+
+        - name: "Rowing Club Wind Direction"
+          #id: rowing_club_wind_direction
+          unit_of_measurement: "Compass"
+          state: "{{ state_attr('sensor.rowing_club_met_forcast', 'D') }}"
+
+        - name: "Rowing Club Wind Speed"
+          #id: rowing_club_wind_speed
+          unit_of_measurement: "mph"
+          state: "{{ state_attr('sensor.rowing_club_met_forcast', 'S') | round(0) }}"
+
+        - name: "Rowing Club Wind Gust"
+          #id: rowing_club_wind_gust
+          unit_of_measurement: "mph"
+          state: "{{ state_attr('sensor.rowing_club_met_forcast', 'G') | round(0) }}"
+
+        - name: "Rowing Club Precipitation Probability"
+          #id: rowing_club_precipitation_probability
+          unit_of_measurement: "%"
+          state: "{{ state_attr('sensor.rowing_club_met_forcast', 'Pp') }}"

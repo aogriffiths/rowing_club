@@ -1,0 +1,289 @@
+title: Rowing Club
+views:
+  - theme: Backend-selected
+    title: Overview
+    path: rowing
+    badges: []
+    cards:
+      - type: markdown
+        content: >-
+          <center>
+
+          <div style="text-align:center">
+
+          {% if is_state('input_select.rowing_club_board_colour', 'Amber') %}
+
+          <img src="/local/rowing_club/board_amber.png" alt="drawing"
+          width="200"/>
+
+          {% elif is_state('input_select.rowing_club_board_colour',
+          'Red/Amber') %}
+
+          <img src="/local/rowing_club/board_red_amber.png" alt="drawing"
+          width="200"/>
+
+          {% elif is_state('input_select.rowing_club_board_colour', 'Red') %}
+
+          <img src="/local/rowing_club/board_red.png" alt="drawing"
+          width="200"/>
+
+          {% else %}
+
+          <img src="/local/rowing_club/board_none.png" alt="drawing"
+          width="200"/>
+
+          {% endif %}
+
+          </div>
+
+          </center>
+
+
+          {{ states('input_select.rowing_club_board_colour') }}. {{
+          states('input_text.rowing_club_board_colour_reason') }}.
+
+
+          {% if is_state('input_select.rowing_club_board_colour', 'Amber') %}
+
+          <ul>
+
+          <li>No learn to row.</li>
+
+          <li>All other boats must either be experienced competent regular
+          coxless boats, have experienced coxes or be supervised by coaching
+          launch.</li>
+
+          <li>All launch drivers must be club approved.</li>
+
+          </ul>
+
+
+          {% elif is_state('input_select.rowing_club_board_colour',
+          'Red/Amber') %}
+
+          <ul>
+
+          <li>Only experienced crews and regular scullers with captains, safety
+          adviser's or senior coach's permission.</li>
+
+          <li>Advanced and high performance junior squads may row if approved by
+          their coach, who is responsible for the decision.</li>
+
+          <li>Coxed boats must have experienced coxes or experienced
+          steersperson.</li>
+
+          <li>No novice rowing or sculling.</MPP li>
+
+          <li>Launch and experienced coach to accompany crews/squads.</li>
+
+          <li>All launch drivers must be club approved.</li>
+
+          </ul>
+
+
+          {% elif is_state('input_select.rowing_club_board_colour', 'Red') %}
+
+          <ul><li>No rowing</li><ul>
+
+
+          {% else %}
+
+          <ul>
+
+          <li>Assess Risk.</li>
+
+          </ul>
+
+          {% endif %}
+        title: Board
+      - type: custom:vertical-stack-in-card
+        title: Now
+        cards:
+          - type: entities
+            entities:
+              - entity: sensor.rowing_club_air_temperature
+                name: 'Temperature '
+                icon: mdi:thermometer
+                secondary_info: none
+              - entity: sensor.rowing_club_river_flow
+                name: Stream
+                icon: mdi:arrow-right
+              - entity: sensor.rowing_club_river_level
+                name: Level
+                icon: mdi:arrow-expand-vertical
+          - type: custom:compass-card
+            header:
+              title:
+                value: Wind
+            indicator_sensors:
+              - sensor: sensor.rowing_club_met_forcast
+                attribute: D
+                indicator:
+                  color: grey
+                  type: arrow_inwar
+            value_sensors:
+              - sensor: sensor.rowing_club_met_forcast
+                attribute: S
+                units: mph
+            compass:
+              north:
+                show: true
+              east:
+                show: true
+              west:
+                show: true
+              south:
+                show: true
+      - type: custom:vertical-stack-in-card
+        title: 3 Day History
+        cards:
+          - type: custom:mini-graph-card
+            icon: mdi:thermometer
+            entities:
+              - entity: sensor.rowing_club_air_temperature
+                name: Temperature
+                show_fill: false
+            name: Temperature
+            hours_to_show: 72
+            points_per_hour: 1
+            aggregate_func: min
+            show:
+              labels: true
+              state: true
+            color_thresholds_transition: hard
+            color_thresholds:
+              - value: -50
+                color: '#FB1A0E'
+              - value: 3
+                color: '#FDB311'
+              - value: 8
+                color: '#009900'
+              - value: 20
+                color: '#009900'
+          - type: custom:mini-graph-card
+            icon: mdi:arrow-right
+            entities:
+              - entity: sensor.rowing_club_river_flow
+                name: Stream
+                show_fill: false
+            name: Stream
+            hours_to_show: 72
+            points_per_hour: 1
+            aggregate_func: max
+            show:
+              labels: true
+              state: true
+            color_thresholds_transition: hard
+            color_thresholds:
+              - value: 0
+                color: '#009900'
+              - value: 65
+                color: '#FDB311'
+              - value: 100
+                color: '#FB1A0E'
+              - value: 120
+                color: '#FB1A0E'
+          - type: custom:mini-graph-card
+            icon: mdi:arrow-expand-vertical
+            min_bound_range: 1
+            entities:
+              - entity: sensor.rowing_club_river_level
+                name: Level
+                color: blue
+            name: Level
+            hours_to_show: 72
+            points_per_hour: 1
+            aggregate_func: max
+            bar_spacing: 1
+            show:
+              graph: bar
+              labels: true
+              state: true
+  - theme: Backend-selected
+    title: Admin
+    path: rowing_admin
+    badges: []
+    cards:
+      - type: vertical-stack
+        title: Board
+        cards:
+          - type: markdown
+            content: >-
+              The board has been calculated as **{{
+              states('input_select.rowing_club_board_colour_calculated')
+              }}**.
+
+              Reason: **{{
+              states('input_text.rowing_club_board_colour_reason_calculated')
+              }}**
+
+              To override this, select a board colour bellow and enter the
+              reason. To use the caculated value, set override to "off".
+          - type: entities
+            entities:
+              - entity: input_select.rowing_club_override_board_colour
+          - type: conditional
+            conditions:
+              - entity: input_select.rowing_club_override_board_colour
+                state: 'on'
+            card:
+              type: entities
+              entities:
+                - entity: input_select.rowing_club_board_colour
+                - entity: input_text.rowing_club_board_colour_reason
+      - type: markdown
+        content: >-
+          | Board Colour| Rowing Activity | Minimum Creteria |
+
+          | ----------- | ----------- |---------- |
+
+          | <img src="/local/rowing_club/board_amber.png" alt="drawing"
+          width="200"/>    | <ul><li>No learn to row.</li><li>All other boats
+          must either be experienced competent regular coxless boats, have
+          experienced coxes or be supervised by coaching launch.</li><li>All
+          launch drivers must be club approved.</li></ul> | <ul><li>**Stream:**
+          65 to 99 m3/sec </li><li>**Water Temperature** <= 8°C *</li></ul>
+
+          | <img src="/local/rowing_club/board_red_amber.png" alt="drawing"
+          width="200"/>    | <ul><li>Only experienced crews and regular scullers
+          with captains, safety adviser's or senior coach's
+          permission.</li><li>Advanced and high performance junior squads may
+          row if approved by their coach, who is responsible for the
+          decision.</li><li>Coxed boats must have experienced coxes or
+          experienced steersperson.</li><li>No novice rowing or
+          sculling.</li><li>Launch and experienced coach to accompany
+          crews/squads.</li><li>All launch drivers must be club
+          approved.</li></ul> | <ul><li>**Stream:** 100 to 119 m3/sec
+          </li><li>**Water Temperature** < 3°C *</li></ul>
+
+          | <img src="/local/rowing_club/board_red.png" alt="drawing"
+          width="200"/>    | <ul><li>No rowing</li><ul>
+          |<ul><li>**Stream:** >= 120 m3/sec </li><li>**Fog** < 400m visibility
+          (Clubhouse to Regatta Steps).</li><li>Lightning, storm, high winds or
+          any other severe weather.</li></ul> |
+
+
+          \* see Cold Water Rowing Rules
+        title: Summary of Safety Rules
+      - type: custom:vertical-stack-in-card
+        title: API Settings
+        cards:
+          - type: markdown
+            content: >-
+              Only edit if you know what these are. Documentation is in
+              rowing_club.yaml in the config directory.
+          - type: entities
+            entities:
+              - entity: input_text.met_datapoint_api_key
+              - entity: input_text.met_datapoint_location
+              - entity: input_text.env_station
+      - type: vertical-stack
+        cards:
+          - show_name: true
+            show_icon: true
+            show_state: true
+            type: glance
+            entities:
+              - entity: script.rowing_club_update_api_data
+              - entity: automation.rowing_club_board_change
+            title: 'Scripts and Automations '
